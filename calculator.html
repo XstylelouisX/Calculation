@@ -1,0 +1,363 @@
+<script>
+
+    //----------普通版----------//
+    //目前運算符號
+    var currentOper = 0;
+    //上次運算符號
+    var lastOper = 0;
+    //計算用
+    var num = 0;
+    //顯示運算符號用
+    var recordNum = "";
+    //累積用
+    var total = 0;
+    //首次輸入
+    var isEnter = false;
+    //輸入切換
+    var isNum = false;
+    //----------豪華版----------//
+    //紀錄運算式
+    var recordData = [];
+    //紀錄符號
+    var recordOper = [];
+    //紀錄計數
+    var recordDataCount = 0;
+    //判斷乘除
+    var readyPop = false;
+    //是否結算
+    var isEnd = false;
+    //結算數字
+    var endNum = 0;
+
+    //初始化載入
+    window.onload = function () {
+        //清除事件
+        document.getElementById("clear").addEventListener("click", function () {
+            Clear();
+        });
+        //按鈕監聽事件
+        for (var i = 0; 10 > i; i++) {
+            document.getElementById("num" + i).addEventListener("click", (function (num) {
+                return function () {
+                    numBtn(num);
+                };
+            })(i)); //num值
+        }
+        document.getElementById("num.").addEventListener("click", function () {
+            numBtn(".");
+        });
+        //符號監聽事件
+        var oper = ["+", "-", "*", "/"]
+        for (var i = 0; oper.length > i; i++) {
+            document.getElementById("oper" + oper[i]).addEventListener("click", (function (num) {
+                return function () {
+                    operBtn(num);
+                };
+            })(oper[i])); //num值
+        }
+        document.getElementById("oper=").addEventListener("click", function () {
+            equal(true);
+        });
+    }
+
+    function Clear() {
+        console.log("清除");
+        document.getElementById("box").value = "";
+        currentOper = 0;
+        lastOper = 0;
+        num = 0;
+        recordNum = "";
+        total = 0;
+        isEnter = false;
+        isNum = false;
+        //紀錄運算式清空
+        recordData = [];
+        //紀錄符號清空
+        recordOper = [];
+        //紀錄計數
+        recordDataCount = 0;
+        //判斷乘除
+        readyPop = false;
+        //是否計算結束
+        isEnd = false;
+    }
+
+    //數字鍵與小數點
+    function numBtn(str) {
+
+        if (isEnd) {
+            return;
+        }
+
+        if (num == 0) {
+            num = str;
+            if (isEnter == false) { //第一次輸入
+                isEnter = true;
+                document.getElementById("box").value = str;
+            } else {
+                document.getElementById("box").value += str;
+            }
+        } else {
+            num += str;
+            document.getElementById("box").value += str;
+        }
+
+        //已輸入數字
+        isNum = true;
+        //紀錄到陣列(豪華版程式)
+        recordNum += str;
+        console.log(endNum);
+    }
+
+    //運算符號
+    function operBtn(str) {
+        //計算結束後再次運算
+        if (isEnd) {
+            Clear();
+            numBtn(endNum);
+        }
+
+        //需輸入數字
+        if (isNum == false) {
+            return;
+        }
+        isNum = false;
+
+        //紀錄這次符號
+        currentOper = str;
+        //計算
+        equal(false);
+        //紀錄累積數
+        total = num;
+        num = 0;
+        //紀錄上次符號
+        lastOper = str;
+
+        //紀錄到陣列(豪華版程式)
+        recordData[recordDataCount] = str;
+        recordDataCount++;
+    }
+
+    //等於
+    function equal(end) {
+
+        //紀錄運算式
+        recordData[recordDataCount] = recordNum;
+        recordDataCount++;
+        recordNum = "";
+
+        switch (lastOper) {
+            case '+':
+                num = parseFloat(total) + parseFloat(num);
+                break;
+            case '-':
+                num = parseFloat(total) - parseFloat(num);
+                break;
+            case '*':
+                num = parseFloat(total) * parseFloat(num);
+                break;
+            case '/':
+                num = parseFloat(total) / parseFloat(num);
+                break;
+            default:
+                break;
+        }
+        //結束計算
+        if (end == true) {
+            //簡易版答案
+            //document.getElementById("box").value += "=" + num;
+            //中序式轉後序式(豪華版程式)
+            console.log(recordData);
+            console.log(toPostfix(recordData));
+            document.getElementById("box").value += "=\n" + postfigCal(recordData);
+            isEnd = true;
+            endNum = postfigCal(recordData);
+        } else {
+            document.getElementById("box").value += currentOper;
+        }
+
+        lastOper = null;
+    }
+
+    //中序式轉後序式
+    //data:帶入運算式
+    function toPostfix(data) {
+        //轉為後序回傳用
+        var formula = [];
+        for (var i = 0; data.length > i; i++) {
+            //如果是數字
+            if (!isNaN(data[i])) {
+                //存入陣列
+                formula.push(data[i]);
+                //如果有紀錄乘除號
+                if (readyPop == true) {
+                    readyPop = false;
+                    //如果有乘除號先排
+                    while (recordOper.length > 0) {
+                        formula.push(recordOper.pop());
+                    }
+                }
+            } else { //如果是符號
+                if (data[i] == '+' || data[i] == '-') {
+                    //加和減的優先度排在後面
+                    //條件:
+                    //1.索引值要大於等於3
+                    //2.條件1符合，同時前個符號為加或減
+                    if (i - 1 > 1 && (data[i - 2] == '+' || data[i - 2] == '-')) {
+                        //將第一個符號推到最後一個位置
+                        formula.push(recordOper.shift());
+                    }
+                    //符號排序
+                    operatorSink(data[i]);
+                } else if (data[i] == '*' || data[i] == '/') {
+                    readyPop = true;
+                    //符號排序
+                    operatorSink(data[i]);
+                }
+            }
+        }
+        //符號最後丟近來
+        while (recordOper.length > 0) {
+            //存入後清除
+            formula.push(recordOper.pop());
+        }
+        return formula;
+    }
+
+    //運算符號排序
+    function operatorSink(stack) {
+        var len = recordOper.length;
+        if (len == 0 || stack == '*' || stack == '/') {
+            //紀錄符號
+            recordOper.push(stack)
+            return;
+        }
+        //紀錄符號
+        recordOper.push(stack);
+        len = recordOper.length;
+        //+和-往後排序(氣泡排序法)
+        for (var i = len - 1; i >= 0; i--) {
+            if (i - 1 >= 0) {
+                var buffer = recordOper[i - 1];
+                recordOper[i - 1] = recordOper[i]; //乘除往前排
+                recordOper[i] = buffer; //加減往後排
+            }
+        }
+    }
+
+    //https://www.thepolyglotdeveloper.com/2015/04/evaluate-a-reverse-polish-notation-equation-with-javascript/
+    String.prototype.isNumeric = function () {
+        //數值和有限值(正無限大負無限大)
+        return !isNaN(parseFloat(this) && isFinite(this));
+    }
+
+    //https://medium.com/%E7%A8%8B%E5%BC%8F%E8%A8%AD%E8%A8%88%E4%B8%8D%E6%98%AF%E9%AD%94%E6%B3%95/javascript-%E8%A8%88%E7%AE%97%E6%A9%9F-38e7314a6a4e
+    //後序式運算答案
+    function postfigCal(datalist) {
+        var calculator = [];
+        datalist = toPostfix(datalist);
+        for (var i = 0; i < datalist.length; i++) {
+            //如果是數字就儲存
+            if (datalist[i].isNumeric()) {
+                calculator.push(parseFloat(datalist[i]));
+            } else { //如果是運算子就計算
+                var symbol = datalist[i];
+                //除錯用
+                console.log(calculator);
+                var a = calculator.pop();
+                var b = calculator.pop();
+                //計算
+                calculator.push(preciseCal(a, b, symbol));
+                console.log(a + symbol + b);
+            }
+        }
+        return calculator[0];
+    }
+
+    //精確計算用
+    function preciseCal(arg1, arg2, operator) {
+        var num1, num2, value;
+        try {
+            num1 = arg1.toString().split(".")[1].length;
+        } catch (e) {
+            num1 = 0;
+        }
+        try {
+            num2 = arg2.toString().split(".")[1].length;
+        } catch (e) {
+            num2 = 0;
+        }
+        value = Math.pow(num1, num2);
+
+        switch (operator) {
+            case "+":
+                return parseFloat((arg2 + arg1).toFixed(value));
+                break;
+            case "-":
+                return parseFloat((arg2 - arg1).toFixed(value));
+                break;
+            case "*":
+                return parseFloat((arg2 * arg1).toFixed(value));
+                break;
+            case "/":
+                return parseFloat((arg2 / arg1).toFixed(value));
+                break;
+        }
+    }
+
+</script>
+
+<html>
+
+<head>
+    <title>
+        computer
+    </title>
+</head>
+
+<body>
+    <script language="JavaScript">
+        document.write("計算機<br>");
+    </script>
+    <table border=1>
+        <tr>
+            <td align="center" colspan="6">
+                <textarea rows="2" align="right" type="text" value="0" id="box"></textarea>
+            </td>
+        </tr>
+
+        <tr align="center">
+            <td> <input type="button" id="num7" value="7"> </td>
+            <td> <input type="button" id="num8" value="8"> </td>
+            <td> <input type="button" id="num9" value="9"> </td>
+            <td> <input type="button" id="oper+" value="+"> </td>
+        </tr>
+
+        <tr align="center">
+            <td> <input type="button" id="num4" value="4"> </td>
+            <td> <input type="button" id="num5" value="5"> </td>
+            <td> <input type="button" id="num6" value="6"> </td>
+            <td> <input type="button" id="oper-" value="-"> </td>
+        </tr>
+
+        <tr align="center">
+            <td> <input type="button" id="num1" value="1"> </td>
+            <td> <input type="button" id="num2" value="2"> </td>
+            <td> <input type="button" id="num3" value="3"> </td>
+            <td> <input type="button" id="oper*" value="*"> </td>
+        </tr>
+
+        <tr align="center">
+            <td> <input type="button" id="num0" value="0"> </td>
+            <td> <input type="button" id="num." value="."> </td>
+            <td> <input type="button" id="oper=" value="="> </td>
+            <td> <input type="button" id="oper/" value="/"> </td>
+        </tr>
+
+        <tr align="center">
+            <td> <input type="button" id="clear" value="c" onClick="clear()"> </td>
+        </tr>
+    </table>
+</body>
+
+</html>
